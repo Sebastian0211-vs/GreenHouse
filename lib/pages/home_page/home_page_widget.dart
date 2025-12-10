@@ -46,6 +46,18 @@ class _HomePageWidgetState extends State<HomePageWidget> {
         appBar: AppBar(
           backgroundColor: FlutterFlowTheme.of(context).primary,
           automaticallyImplyLeading: false,
+          leading: Container(
+            width: 300.0,
+            height: 300.0,
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+            ),
+            child: Image.network(
+              'https://storage.googleapis.com/flutterflow-io-6f20.appspot.com/projects/crop-house-ltz97a/assets/i7pcz4atgo0j/content.png',
+              fit: BoxFit.cover,
+            ),
+          ),
           title: Text(
             'Crop House ',
             style: FlutterFlowTheme.of(context).headlineMedium.override(
@@ -67,13 +79,6 @@ class _HomePageWidgetState extends State<HomePageWidget> {
           actions: [],
           centerTitle: false,
           elevation: 2.0,
-        ),
-        body: SafeArea(
-          top: true,
-          child: Column(
-            mainAxisSize: MainAxisSize.max,
-            children: [],
-          ),
         ),
       ),
     );

@@ -50,7 +50,7 @@ class AllTasksTableWidgetState extends State<AllTasksTableWidget> {
         12357,
         'crophouse',
         username: 'avnadmin',
-        // add pass field
+        password: 'AVNS_yZ3iY6b_woJDTC5hQTW',
         useSSL: true,
       );
 

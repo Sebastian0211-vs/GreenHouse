@@ -85,6 +85,108 @@ JOIN
 -- -- ** -- --
 
 
+-- SELECT find stock depletion rate and date where qty will get to zero
+WITH stock_qty AS(
+    SELECT
+      s.item_id,
+      SUM(s.stock_movement) AS qty
+    FROM
+      stocks AS s
+    GROUP BY
+      s.item_id
+),
+item_qty AS(
+  SELECT
+    i.name,
+    sq.qty,
+    u.unit
+  FROM
+    items AS i
+  JOIN
+    units AS u ON i.unit_id = u.id
+  JOIN
+    stock_qty AS sq ON i.id = sq.item_id
+  WHERE
+    sq.item_id = $1
+),
+last_resupply AS(
+  SELECT
+    s.datetime
+  FROM
+    stocks AS s
+  WHERE
+  -- REPLACE 6 BY VARIABLE $1
+    s.item_id = 6 AND
+    s.stock_movement > 0
+  ORDER BY
+    s.datetime DESC
+  LIMIT
+    1
+)
+SELECT
+  (SELECT lr.datetime FROM last_resupply AS lr) AS last_resupply,
+  ROUND(SUM(s.stock_movement)) AS out_since_last_resupply,
+  EXTRACT(day FROM (LOCALTIMESTAMP - (SELECT datetime FROM last_resupply))) AS days_since_last_resupply,
+  ROUND(
+    (
+      -SUM(s.stock_movement)
+      /
+      NULLIF(
+        EXTRACT(
+          day FROM (LOCALTIMESTAMP - (SELECT datetime FROM last_resupply))
+        ),
+        0
+      )
+    )::numeric
+  ) AS items_per_day,
+  (SELECT q.qty FROM item_qty AS q) AS qty,
+  ROUND(
+    -(SELECT q.qty FROM item_qty AS q)
+    /
+    NULLIF(
+      ROUND(
+        (
+          SUM(s.stock_movement)
+          /
+          NULLIF(
+            EXTRACT(
+              day FROM (LOCALTIMESTAMP - (SELECT datetime FROM last_resupply))
+            ),
+            0
+          )
+        )::numeric
+      ),
+      0
+    )
+  ) AS days_to_zero,
+  CURRENT_DATE + ROUND(
+    -(SELECT q.qty FROM item_qty AS q)
+    /
+    NULLIF(
+      ROUND(
+        (
+          SUM(s.stock_movement)
+          /
+          NULLIF(
+            EXTRACT(
+              day FROM (LOCALTIMESTAMP - (SELECT datetime FROM last_resupply))
+            ),
+            0
+          )
+        )::numeric
+      ),
+      0
+    )
+  )::integer AS zero_date
+FROM
+  stocks AS s
+WHERE
+  s.item_id = $1 AND
+  s.stock_movement < 0 AND
+  s.datetime > (SELECT lr.datetime FROM last_resupply AS lr)
+-- -- ** -- --
+
+
 -- SELECT task supplies
 SELECT
   t.id,
@@ -141,6 +243,15 @@ SELECT
   name
 FROM
   suppliers
+-- -- ** -- --
+
+
+-- UPDATE archive user
+UPDATE users
+SET
+  active = false
+WHERE
+  id = $1
 -- -- ** -- --
 
 

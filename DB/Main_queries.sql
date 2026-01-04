@@ -18,7 +18,13 @@ LEFT JOIN
   users AS u ON t.user_id = u.id
 -- Filter to select a specific one:
 WHERE
-  t.user_id = COALESCE($1, t.user_id) OR ($1 IS NULL AND t.user_id IS NULL)
+  (t.user_id = COALESCE($1, t.user_id) OR ($1 IS NULL AND t.user_id IS NULL)) AND
+  t.due <= CURRENT_DATE + INTERVAL '2 day'
+  AND t.status_id <> 5 -- Without done - Optional
+--   AND t.status_id <> 2 -- Without assigned - Optional
+--   AND t.status_id <> 3 -- Without In progress - Optional
+--   AND t.status_id = 4 -- Overdue - Optional
+ORDER BY t.due
 -- -- ** -- --
 
 
@@ -246,6 +252,17 @@ FROM
 -- -- ** -- --
 
 
+-- UPDATE task due date every day when due date is in the past
+-- (execute after 01:00 in the morning, server local time is UTC)
+UPDATE tasks
+SET
+  due = GREATEST(due, CURRENT_DATE + 1)
+WHERE
+  due <= CURRENT_DATE
+-- -- ** -- --
+
+
+
 -- UPDATE archive user
 UPDATE users
 SET
@@ -317,7 +334,7 @@ VALUES(
 -- -- ** -- --
 
 
--- INSERT new plantings (possibly add all tasks, maybe too complicated in SQL, tbd)
+-- INSERT new plantings (add all tasks related to the crop after insertion in progress)
 INSERT INTO plantings(
   bed_id,
   crop_id,
@@ -351,6 +368,40 @@ RETURNING id
 -- RETURNING statement is to be used to check if the insertion was successful:
 -- (id != null => enough space, id == null => not enough space in selected  bed)
 -- app must listen to that and react accordingly
+
+-- Then add related tasks based on crop intervals (in progress)
+-- Add watering tasks(type_id=1)
+do $$
+begin
+  for counter in 1..(SELECT harvesting_window FROM crops WHERE id = 4) by (SELECT watering_interval FROM crops WHERE id = 4) loop
+    raise notice 'Watering date: %', CURRENT_DATE + counter;
+	INSERT INTO tasks (type_id, user_id, planting_id, due)
+	VALUES
+	(1, NULL, 1, CURRENT_DATE + counter);
+  end loop;
+end; $$
+
+-- Add thin tasks(type_id=2)
+do $$
+begin
+  for counter in 1..(SELECT harvesting_window FROM crops WHERE id = 4) by (SELECT thin_interval FROM crops WHERE id = 4) loop
+    raise notice 'Watering date: %', CURRENT_DATE + counter;
+	INSERT INTO tasks (type_id, user_id, planting_id, due)
+	VALUES
+	(2, NULL, 1, CURRENT_DATE + counter);
+  end loop;
+end; $$
+
+-- Add scout pest tasks(type_id=3)
+do $$
+begin
+  for counter in 1..(SELECT harvesting_window FROM crops WHERE id = 4) by (SELECT scout_pest_interval FROM crops WHERE id = 4) loop
+    raise notice 'Watering date: %', CURRENT_DATE + counter;
+	INSERT INTO tasks (type_id, user_id, planting_id, due)
+	VALUES
+	(3, NULL, 1, CURRENT_DATE + counter);
+  end loop;
+end; $$
 -- -- ** -- --
 
 

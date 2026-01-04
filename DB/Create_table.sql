@@ -72,7 +72,7 @@ CREATE TABLE tasks (
   user_id INTEGER,
   planting_id INTEGER,
   status_id INTEGER DEFAULT 1,
-  due DATE NOT NULL CHECK (due > CURRENT_DATE),
+  due DATE NOT NULL CHECK (due >= CURRENT_DATE),
   start_time TIMESTAMP,
   end_time TIMESTAMP CHECK (end_time > start_time)
 );

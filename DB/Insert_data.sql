@@ -82,7 +82,8 @@ VALUES
 (4, 'Jour 2, quelque chose semble bizarre, mais ce n''est probablement pas grave.'),
 (4, 'Jour 16, les plantes me parlent, venez me chercher s''il vous plait.');
 
-  INSERT INTO tasks (type_id, user_id, planting_id, 
+INSERT INTO tasks (type_id, user_id, planting_id, due)
+VALUES
 (1, 1, 1, CURRENT_DATE + INTERVAL '1 DAY'),
 (1, 1, 1, CURRENT_DATE + INTERVAL '2 DAY'),
 (1, 2, 1, CURRENT_DATE + INTERVAL '3 DAY'),

@@ -370,6 +370,9 @@ RETURNING id
 -- app must listen to that and react accordingly
 
 -- Then add related tasks based on crop intervals (in progress)
+-- TODO
+-- - Replace hardcoded planting_id below by the returned id from the previous INSERT
+-- - Replace hardcoded crop_id below by $2 from the previous INSERT
 -- Add watering tasks(type_id=1)
 do $$
 begin

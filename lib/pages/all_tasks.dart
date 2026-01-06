@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'utils/sql_table.dart';
 
 class AllTasksPage extends StatefulWidget {
-  const AllTasksPage({Key? key}) : super(key: key);
+  const AllTasksPage({super.key});
 
   @override
   _AllTasksPageState createState() => _AllTasksPageState();

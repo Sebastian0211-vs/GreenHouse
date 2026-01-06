@@ -9,13 +9,13 @@ class AllTasksTableWidget extends StatefulWidget {
   final Function? onRefresh; 
 
   const AllTasksTableWidget({
-    Key? key,
+    super.key,
     required this.tableName,
     required this.columns,
     this.hiddenColumns = const ['id'],
     this.maxHeight,
     this.onRefresh,
-  }) : super(key: key);
+  });
 
   @override
   AllTasksTableWidgetState createState() => AllTasksTableWidgetState();

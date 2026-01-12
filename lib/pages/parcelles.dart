@@ -135,7 +135,7 @@ class Note {
     }
   }
 
-  static Future<void> insertNote(int plantingId, String text, PostgreSQLConnection connection) async {
+  static Future<void> insertNote(int plantingId, String text) async {
     try {
       final connection = PostgreSQLConnection(
         'pg-crophouse-crophouse.d.aivencloud.com',
@@ -249,6 +249,7 @@ class Task {
   }
 
   static Future<void> insertTask(int plantingId, int typeId, DateTime dueDate) async {
+    print("kikou");
     try {
       final connection = PostgreSQLConnection(
         'pg-crophouse-crophouse.d.aivencloud.com',
@@ -259,18 +260,19 @@ class Task {
         useSSL: true,
       );
       await connection.open();
+      print("typeId: $typeId, plantingId: $plantingId, dueDate: $dueDate");
       await connection.query(
         '''
         INSERT INTO tasks (type_id, planting_id, status_id, due)
-        VALUES (@typeId, @plantingId, @statusId, @dueDate)
+        VALUES (@typeId, @plantingId, 1, @dueDate)
         ''',
         substitutionValues: {
           'typeId': typeId,
           'plantingId': plantingId,
-          'statusId': 1,
           'dueDate': dueDate,
         },
       );
+
 
       await connection.close();
     } catch (e) {
@@ -644,7 +646,7 @@ Future<String?> _getWikipediaThumb(String plantName) async {
                   final text = controller.text.trim();
                   if (text.isEmpty) return;
 
-                  await Note.insertNote(planting.id, text, connection);
+                  await Note.insertNote(planting.id, text);
 
                   // Reload notes
                   planting.notes = null;
@@ -752,12 +754,11 @@ Future<String?> _getWikipediaThumb(String plantName) async {
     Planting planting,
     void Function(void Function()) refreshParent,
   ) {
-    final taskController = TextEditingController();
     DateTime? selectedDueDate;
 
     // --- modal state variables ---
-    List<TaskType>? statuses;
-    TaskType? selectedStatus;
+    List<TaskType>? taskTypes;
+    TaskType? selectedTaskType;
     bool hasLoaded = false;
 
     showModalBottomSheet(
@@ -774,11 +775,11 @@ Future<String?> _getWikipediaThumb(String plantName) async {
                   final data = await TaskType.fetchTaskTypes();
                   if (!context.mounted) return; // ⚡ safety check
                   setModalState(() {
-                    statuses = data;
-                    selectedStatus = data.first;
+                    taskTypes = data;
+                    selectedTaskType = data.first;
                   });
                 } catch (e) {
-                  print("Error fetching task statuses: $e");
+                  print("Error fetching task types: $e");
                 }
               });
             }
@@ -828,20 +829,20 @@ Future<String?> _getWikipediaThumb(String plantName) async {
 
                   const SizedBox(height: 12),
 
-                  if (statuses == null)
+                  if (taskTypes == null)
                     const CircularProgressIndicator()
                   else
                     DropdownButton<TaskType>(
                       isExpanded: true,
-                      value: selectedStatus,
-                      items: statuses!.map((status) {
+                      value: selectedTaskType,
+                      items: taskTypes!.map((taskType) {
                         return DropdownMenuItem(
-                          value: status,
-                          child: Text(status.name),
+                          value: taskType,
+                          child: Text(taskType.name),
                         );
                       }).toList(),
                       onChanged: (value) {
-                        setModalState(() => selectedStatus = value);
+                        setModalState(() => selectedTaskType = value);
                       },
                     ),
 
@@ -850,12 +851,13 @@ Future<String?> _getWikipediaThumb(String plantName) async {
                   ElevatedButton(
                     child: const Text("Create"),
                     onPressed: () async {
-                      final text = taskController.text.trim();
-                      if (text.isEmpty || selectedStatus == null || selectedDueDate == null) return;
+                      if (selectedTaskType == null || selectedDueDate == null) return;
+
+                      print("typeId: ${selectedTaskType!.id}, plantingId: ${planting.id}, dueDate: $selectedDueDate");
 
                       await Task.insertTask(
                         planting.id,
-                        selectedStatus!.id,
+                        selectedTaskType!.id,
                         selectedDueDate!,
                       );
 

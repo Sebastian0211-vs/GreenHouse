@@ -33,7 +33,7 @@ Typical folders:
 - `lib/` — Flutter source code (pages, services, widgets, SQL helpers)
 - `DB/` — database scripts / notes / assets (schema, seed, queries)
 - `web/`, `android/`, `ios/`, `windows/`, `linux/`, `macos/` — platform targets
-- `CropHouse.png` — project image/logo asset :contentReference[oaicite:2]{index=2}
+- `CropHouse.png`
 
 ---
 

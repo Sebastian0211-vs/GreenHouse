@@ -173,11 +173,7 @@ class _MainShellState extends State<MainShell> {
                 selected: _selectedIndex == 5,
                 onTap: () => _goToPage(5),
               ),
-              ListTile(
-                leading: const Icon(Icons.admin_panel_settings),
-                title: const Text("Admin Settings"),
-                onTap: () {},
-              ),  
+
               const Spacer(),
               const Divider(height: 1),
 

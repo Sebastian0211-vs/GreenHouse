@@ -36,7 +36,23 @@ Typical folders:
 - `CropHouse.png`
 
 ---
+## Database schema
 
+The full database schema is documented in:
+
+> 📄 **`CropHouse.png`**
+
+This file is the **ER / relational schema diagram** of the entire system:
+- users
+- beds
+- plantings
+- crops
+- tasks
+- task types
+- task status
+- inventory
+- relations and foreign keys
+  
 ## Getting started
 
 ### Prerequisites

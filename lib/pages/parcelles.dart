@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'utils/sql_parcelles.dart';
 import 'dart:math';
 import '../../services/auth_service.dart';
 import 'package:postgres/postgres.dart';
@@ -729,7 +728,7 @@ Future<String?> _getWikipediaThumb(String plantName) async {
                         ),
                       ),
                     ),
-                  ).toList(),
+                  ),
 
                 const SizedBox(height: 16),
 
@@ -821,8 +820,8 @@ Future<String?> _getWikipediaThumb(String plantName) async {
                         ),
                       ),
                       ElevatedButton(
-                        child: const Text("Pick date"),
                         onPressed: pickDueDate,
+                        child: const Text("Pick date"),
                       ),
                     ],
                   ),
@@ -877,7 +876,6 @@ Future<String?> _getWikipediaThumb(String plantName) async {
       },
     );
   }
-
 
   void _openTasksModal(BuildContext context, Planting planting) {
   showModalBottomSheet(

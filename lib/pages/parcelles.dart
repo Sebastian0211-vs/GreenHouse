@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'utils/sql_parcelles.dart';
 import 'dart:math';
 import '../../services/auth_service.dart';
 import 'package:postgres/postgres.dart';
@@ -611,7 +610,7 @@ class _ParcellesPageState extends State<ParcellesPage> {
                         ),
                       ),
                     ),
-                  ).toList(),
+                  ),
 
                 const SizedBox(height: 16),
 
@@ -703,8 +702,8 @@ class _ParcellesPageState extends State<ParcellesPage> {
                         ),
                       ),
                       ElevatedButton(
-                        child: const Text("Pick date"),
                         onPressed: pickDueDate,
+                        child: const Text("Pick date"),
                       ),
                     ],
                   ),
@@ -759,7 +758,6 @@ class _ParcellesPageState extends State<ParcellesPage> {
       },
     );
   }
-
 
   void _openTasksModal(BuildContext context, Planting planting) {
   showModalBottomSheet(

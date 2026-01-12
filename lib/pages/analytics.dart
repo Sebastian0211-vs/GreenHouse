@@ -57,7 +57,7 @@ class _AnalyticsPageState extends State<AnalyticsPage> {
         JOIN stock_qty sq ON i.id = sq.item_id
       """);
 
-      // Depletion projection (from your logic)
+      // Depletion projection
       final depletion = await conn.query("""
         SELECT
           sq.item_id,

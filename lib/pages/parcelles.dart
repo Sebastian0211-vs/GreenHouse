@@ -523,7 +523,6 @@ Future<String?> _getWikipediaThumb(String plantName) async {
     final parts = s.split(RegExp(r'\s+'));
     if (parts.length <= 1) return s;
     // If it contains "Purple", "Haze", etc. drop everything after first word
-    // If you want smarter later, we can map crop_id -> canonical wiki title in DB.
     return parts.first;
   }
 

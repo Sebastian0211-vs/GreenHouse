@@ -57,3 +57,7 @@ cd GreenHouse
 ```bash
 flutter pub get
 ```
+
+## License
+
+This project is licensed under the MIT License.

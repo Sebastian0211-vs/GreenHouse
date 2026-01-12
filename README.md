@@ -26,14 +26,14 @@ GreenHouse is a Flutter (Web/Desktop/Mobile) application built as a school proje
 
 ## Repository structure
 
-At the root you have a standard Flutter project layout (`lib/`, `web/`, `android/`, `ios/`, etc.) plus database assets. :contentReference[oaicite:1]{index=1}
+At the root you have a standard Flutter project layout (`lib/`, `web/`, `android/`, `ios/`, etc.) plus database assets.
 
 Typical folders:
 
 - `lib/` — Flutter source code (pages, services, widgets, SQL helpers)
 - `DB/` — database scripts / notes / assets (schema, seed, queries)
 - `web/`, `android/`, `ios/`, `windows/`, `linux/`, `macos/` — platform targets
-- `CropHouse.png` — project image/logo asset :contentReference[oaicite:2]{index=2}
+- `CropHouse.png`
 
 ---
 

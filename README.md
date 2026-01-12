@@ -26,7 +26,7 @@ GreenHouse is a Flutter (Web/Desktop/Mobile) application built as a school proje
 
 ## Repository structure
 
-At the root you have a standard Flutter project layout (`lib/`, `web/`, `android/`, `ios/`, etc.) plus database assets. :contentReference[oaicite:1]{index=1}
+At the root you have a standard Flutter project layout (`lib/`, `web/`, `android/`, `ios/`, etc.) plus database assets.
 
 Typical folders:
 

@@ -715,7 +715,7 @@ class _ParcellesPageState extends State<ParcellesPage> {
                         ),
                       ),
                     ),
-                  ).toList(),
+                  ),
 
                 const SizedBox(height: 16),
 
@@ -807,8 +807,8 @@ class _ParcellesPageState extends State<ParcellesPage> {
                         ),
                       ),
                       ElevatedButton(
-                        child: const Text("Pick date"),
                         onPressed: pickDueDate,
+                        child: const Text("Pick date"),
                       ),
                     ],
                   ),

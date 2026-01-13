@@ -61,10 +61,10 @@ class AllTasksTableWidgetState extends State<AllTasksTableWidget> {
 
       final query = """
       SELECT  t.id,
-              tt.name || ' of planting n.' || t.planting_id || ', variety: ' || c.variety AS Task,
-              u.username,
-              ts.name AS Status,
-              TO_CHAR(t.due, 'DD.MM.YYYY') AS Due
+              tt.name || ' of planting n.' || t.planting_id || ', variety: ' || c.variety AS "Task",
+              u.username AS "Username",
+              ts.name AS "Status",
+              TO_CHAR(t.due, 'DD.MM.YYYY') AS "Due"
         FROM tasks AS t
           JOIN task_types AS tt ON t.type_id = tt.id
           JOIN task_status AS ts ON t.status_id = ts.id
@@ -119,9 +119,11 @@ class AllTasksTableWidgetState extends State<AllTasksTableWidget> {
       UPDATE tasks
       SET
         user_id = $userId,
-        status_id = 2
+        status_id = 2,
+        due = GREATEST(due, CURRENT_DATE + 1)
       WHERE
-        id = $taskId
+        id = $taskId AND
+        user_id IS NULL
     ''';
     assignUser(query);
     refreshData();

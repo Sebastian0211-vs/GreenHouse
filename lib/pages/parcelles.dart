@@ -18,6 +18,11 @@ class Bed {
     required this.plants,
   });
 
+  void setPlants(List<Planting> plantings) {
+    plants.clear();
+    plants.addAll(plantings);
+  }
+
   static Future<Bed> fromDbRow(
     Map<String, dynamic> row,
     PostgreSQLConnection connection,
@@ -328,6 +333,68 @@ class TaskType {
   }
 }
 
+class Crop {
+  final int id;
+  final String variety;
+
+  Crop({
+    required this.id,
+    required this.variety,
+  });
+
+  factory Crop.fromRow(Map<String, dynamic> row) {
+    return Crop(
+      id: row['id'] as int,
+      variety: row['variety'] as String,
+    );
+  }
+
+  static Future<List<Crop>> fetchAllCrops() async {
+    try {
+      final connection = PostgreSQLConnection(
+        'pg-crophouse-crophouse.d.aivencloud.com',
+        12357,
+        'crophouse',
+        username: 'avnadmin',
+        password: 'AVNS_yZ3iY6b_woJDTC5hQTW',
+        useSSL: true,
+      );
+      await connection.open();
+      final results = await connection.query(
+        '''
+        SELECT id, variety
+        FROM crops
+        ORDER BY variety
+        '''
+      );
+
+      final crops = results.map((r) {
+        final map = r.toColumnMap();
+        return Crop.fromRow(map);
+      }).toList();
+
+      await connection.close();
+      return crops;
+    } catch (e) {
+      throw Exception('Error fetching crops: $e');
+    }
+  }
+}
+
+class NewPlanting {
+  final int bedId;
+  final int cropId;
+  final bool isTrial;
+  final int size;
+
+  NewPlanting({
+    required this.bedId,
+    required this.cropId,
+    required this.isTrial,
+    required this.size,
+  });
+}
+
 class Planting {
   final int id;
   final int bedId;
@@ -374,6 +441,36 @@ class Planting {
       throw Exception('Error fetching notes for planting: $e');
     }
   }
+
+  static Future<void> insertPlanting(NewPlanting newPlanting) async {
+    try {
+      final connection = PostgreSQLConnection(
+        'pg-crophouse-crophouse.d.aivencloud.com',
+        12357,
+        'crophouse',
+        username: 'avnadmin',
+        password: 'AVNS_yZ3iY6b_woJDTC5hQTW',
+        useSSL: true,
+      );
+      await connection.open();
+      await connection.query(
+        '''
+        SELECT create_planting_and_tasks(@bedId, @cropId, @isTrial, @size); -- Parameters : (bed_id, crop_id, is_trial, size)
+        ''',
+        substitutionValues: {
+          'bedId': newPlanting.bedId,
+          'cropId': newPlanting.cropId,
+          'isTrial': newPlanting.isTrial,
+          'size': newPlanting.size,
+        },
+      );
+
+      await connection.close();
+    } catch (e) {
+      throw Exception('Error inserting new note for new planting: $e');
+    }
+  }
+  
 }
 
 class BedTile {
@@ -439,6 +536,14 @@ class _ParcellesPageState extends State<ParcellesPage> {
 
   Future<void> _loadBeds() async {
     try {
+      final connection = PostgreSQLConnection(
+        'pg-crophouse-crophouse.d.aivencloud.com',
+        12357,
+        'crophouse',
+        username: 'avnadmin',
+        password: 'AVNS_yZ3iY6b_woJDTC5hQTW',
+        useSSL: true,
+      );
       final beds = await _getBeds(connection);
       setState(() {
         _beds = beds;
@@ -948,6 +1053,118 @@ Future<String?> _getWikipediaThumb(String plantName) async {
   );
 }
 
+  void _openAddPlantingModal(BuildContext context, Bed bed) {
+    Crop? selectedCrop;
+    int? size;
+    bool isTrial = false;
+    List<Crop> crops = [];
+
+    // Lazy load crops from DB
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final fetchedCrops = await Crop.fetchAllCrops();
+      setState(() => crops = fetchedCrops);
+    });
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                16,
+                16,
+                MediaQuery.of(context).viewInsets.bottom + 16,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                    "Add Planting",
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 12),
+
+                  // Dropdown for plants
+                  if (crops.isEmpty)
+                    const CircularProgressIndicator()
+                  else
+                    DropdownButton<Crop>(
+                      isExpanded: true,
+                      value: selectedCrop,
+                      hint: const Text("Select plant"),
+                      items: crops.map((crop) {
+                        return DropdownMenuItem(
+                          value: crop,
+                          child: Text(crop.variety),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setModalState(() => selectedCrop = value);
+                      },
+                    ),
+
+                  const SizedBox(height: 12),
+
+                  // Size input
+                  TextField(
+                    keyboardType: TextInputType.number,
+                    decoration: const InputDecoration(
+                      labelText: "Size",
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (val) {
+                      setModalState(() => size = int.tryParse(val));
+                    },
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Trial checkbox
+                  CheckboxListTile(
+                    title: const Text("Trial crop"),
+                    value: isTrial,
+                    onChanged: (val) => setModalState(() => isTrial = val ?? false),
+                  ),
+
+                  const SizedBox(height: 12),
+
+                  // Create button
+                  ElevatedButton(
+                    child: const Text("Add Planting"),
+                    onPressed: () async {
+                      if (selectedCrop == null || size == null) return;
+
+                      // Insert planting into DB
+                      await Planting.insertPlanting(
+                        NewPlanting(
+                          bedId: bed.id,
+                          cropId: selectedCrop!.id,
+                          size: size!,
+                          isTrial: isTrial,
+                        ), 
+                      );
+
+                      _loadBeds();
+
+                      Navigator.pop(context);
+                      setState(() {
+                        bed.setPlants([]); // force reload
+                      });
+                    },
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -955,7 +1172,18 @@ Future<String?> _getWikipediaThumb(String plantName) async {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text("Parcelles")),
+      appBar: AppBar(
+        title: const Text("Parcelles"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            tooltip: 'Refresh Data',
+            onPressed: () async {
+              _loadBeds();
+            },
+          ),
+        ],
+      ),
       body: ListView.builder(
         padding: const EdgeInsets.all(16),
         itemCount: _beds.length,
@@ -972,6 +1200,7 @@ Future<String?> _getWikipediaThumb(String plantName) async {
                     fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8),
+
               GridView.builder(
                 physics: const NeverScrollableScrollPhysics(),
                 shrinkWrap: true,
@@ -984,6 +1213,24 @@ Future<String?> _getWikipediaThumb(String plantName) async {
 
                 itemBuilder: (context, tileIndex) {
                   final tile = tiles[tileIndex];
+
+                  GestureDetector(
+                    onTap: () {
+                      if (tile.label == "Empty") {
+                        _openAddPlantingModal(context, bed);
+                      }
+                    },
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: tile.color,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.black12),
+                      ),
+                      child: Center(
+                        child: Text(tile.tooltip, overflow: TextOverflow.ellipsis),
+                      ),
+                    ),
+                  );
 
                   return InkWell(
                     onTap: () {

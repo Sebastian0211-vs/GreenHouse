@@ -37,7 +37,7 @@ class _AllTasksPageState extends State<AllTasksPage> {
               child: AllTasksTableWidget(
                 key: _tableKey,
                 tableName: 'tasks',
-                columns: ['id','task', 'username', 'status', 'due'],
+                columns: ['id','Task', 'Username', 'Status', 'Due'],
               ),
             ),
           ],

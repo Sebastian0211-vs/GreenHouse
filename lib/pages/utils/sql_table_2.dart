@@ -62,12 +62,12 @@ class MyTasksTableWidgetState extends State<MyTasksTableWidget> {
 
       final query = """
       SELECT  t.id,
-              tt.name || ' of planting n.' || t.planting_id || ', variety: ' || c.variety AS Task,
+              tt.name || ' of planting n.' || t.planting_id || ', variety: ' || c.variety AS "Task",
               u.username,
-              t.start_time,
-              t.end_time,
-              ts.name AS Status,
-              TO_CHAR(t.due, 'DD.MM.YYYY') AS Due
+              TO_CHAR(t.start_time, 'DD.MM.YYYY HH24:MI') AS "Start time",
+              TO_CHAR(t.end_time, 'DD.MM.YYYY HH24:MI') AS "End time",
+              ts.name AS "Status",
+              TO_CHAR(t.due, 'DD.MM.YYYY') AS "Due"
         FROM tasks AS t
           JOIN task_types AS tt ON t.type_id = tt.id
           JOIN task_status AS ts ON t.status_id = ts.id
@@ -122,7 +122,8 @@ class MyTasksTableWidgetState extends State<MyTasksTableWidget> {
       UPDATE tasks
       SET
         start_time = LOCALTIMESTAMP,
-        status_id = 3
+        status_id = 3,
+        due = GREATEST(due, CURRENT_DATE + 1)
       WHERE
         id = $taskId
     ''';
@@ -213,14 +214,14 @@ class MyTasksTableWidgetState extends State<MyTasksTableWidget> {
                           cells: visibleColumns.map((column) {
                             final cellValue = rowData[column]?.toString() ?? '';
 
-                            if (column.toLowerCase() == 'start_time' && cellValue.isEmpty) {
+                            if (column.toLowerCase() == 'Start time' && cellValue.isEmpty) {
                               needToStart=true;
                             }
-                            else if (column.toLowerCase() == 'end_time' && cellValue.isEmpty) {
+                            else if (column.toLowerCase() == 'End time' && cellValue.isEmpty) {
                               needToEnd=true;
                             }
 
-                            if (column.toLowerCase() == 'action') {
+                            if (column.toLowerCase() == 'Action') {
                               if(needToStart) {
                                 return DataCell(
                                   ElevatedButton.icon(

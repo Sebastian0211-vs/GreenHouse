@@ -37,7 +37,7 @@ class _MyTasksPageState extends State<MyTasksPage> {
               child: MyTasksTableWidget(
                 key: _tableKey,
                 tableName: 'tasks',
-                columns: ['id','username','task', 'start_time', 'end_time', 'action', 'status', 'due'],
+                columns: ['id','username','Task', 'Start time', 'End time', 'Action', 'Status', 'Due'],
               ),
             ),
           ],

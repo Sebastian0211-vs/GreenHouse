@@ -1214,76 +1214,63 @@ Future<String?> _getWikipediaThumb(String plantName) async {
                 itemBuilder: (context, tileIndex) {
                   final tile = tiles[tileIndex];
 
-                  GestureDetector(
-                    onTap: () {
-                      if (tile.label == "Empty") {
-                        _openAddPlantingModal(context, bed);
-                      }
-                    },
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: tile.color,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: Colors.black12),
-                      ),
-                      child: Center(
-                        child: Text(tile.tooltip, overflow: TextOverflow.ellipsis),
-                      ),
-                    ),
-                  );
-
                   return InkWell(
                     onTap: () {
-                      showModalBottomSheet(
-                        context: context,
-                        isScrollControlled: true,
-                        builder: (context) {
-                          return Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  tile.tooltip,
-                                  style: const TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
+                      if (tile.label == "Empty") {
+                        // Empty tile → open add planting modal
+                        _openAddPlantingModal(context, bed);
+                      } else {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          builder: (context) {
+                            return Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    tile.tooltip,
+                                    style: const TextStyle(
+                                      fontSize: 20,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text("Crop size: ${tile.planting.size}"),
-                                Text(
-                                  "Planted on: ${tile.planting.plantingDate.toLocal().toIso8601String().split('T').first}",
-                                ),
-                                Text(
-                                  "Planned harvest: ${tile.planting.harvestingDate.toLocal().toIso8601String().split('T').first}",
-                                ),
-                                Text("Trial: ${tile.planting.isTrial}"),
-                                const SizedBox(height: 16),
+                                  const SizedBox(height: 8),
+                                  Text("Crop size: ${tile.planting.size}"),
+                                  Text(
+                                    "Planted on: ${tile.planting.plantingDate.toLocal().toIso8601String().split('T').first}",
+                                  ),
+                                  Text(
+                                    "Planned harvest: ${tile.planting.harvestingDate.toLocal().toIso8601String().split('T').first}",
+                                  ),
+                                  Text("Trial: ${tile.planting.isTrial}"),
+                                  const SizedBox(height: 16),
 
-                                ElevatedButton.icon(
-                                  icon: const Icon(Icons.note),
-                                  label: const Text("See notes"),
-                                  onPressed: () {
-                                    Navigator.pop(context);
-                                    _openNotesModal(context, tile.planting);
-                                  },
-                                ),
+                                  ElevatedButton.icon(
+                                    icon: const Icon(Icons.note),
+                                    label: const Text("See notes"),
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                      _openNotesModal(context, tile.planting);
+                                    },
+                                  ),
 
-                                ElevatedButton.icon(
-                                  icon: const Icon(Icons.task),
-                                  label: const Text("See tasks"),
-                                  onPressed: () {
-                                    Navigator.pop(context);
-                                    _openTasksModal(context, tile.planting);
-                                  },
-                                ),
-                              ],
-                            ),
-                          );
-                        },
-                      );
+                                  ElevatedButton.icon(
+                                    icon: const Icon(Icons.task),
+                                    label: const Text("See tasks"),
+                                    onPressed: () {
+                                      Navigator.pop(context);
+                                      _openTasksModal(context, tile.planting);
+                                    },
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        );
+                      }
                     },
 
                     child: Tooltip(

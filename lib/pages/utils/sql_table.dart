@@ -71,6 +71,7 @@ class AllTasksTableWidgetState extends State<AllTasksTableWidget> {
           JOIN plantings AS p ON t.planting_id = p.id
           JOIN crops AS c ON p.crop_id = c.id
           LEFT JOIN users AS u ON t.user_id = u.id
+          ORDER BY t.due ASC
       """;
       final results = await connection.query(query);
 

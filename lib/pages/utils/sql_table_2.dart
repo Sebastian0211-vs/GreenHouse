@@ -75,6 +75,7 @@ class MyTasksTableWidgetState extends State<MyTasksTableWidget> {
           JOIN crops AS c ON p.crop_id = c.id
           LEFT JOIN users AS u ON t.user_id = u.id
         WHERE t.user_id=$userId
+        ORDER BY t.due ASC
       """;
       final results = await connection.query(query);
 
@@ -214,14 +215,14 @@ class MyTasksTableWidgetState extends State<MyTasksTableWidget> {
                           cells: visibleColumns.map((column) {
                             final cellValue = rowData[column]?.toString() ?? '';
 
-                            if (column.toLowerCase() == 'Start time' && cellValue.isEmpty) {
+                            if (column.toLowerCase() == 'start time' && cellValue.isEmpty) {
                               needToStart=true;
                             }
-                            else if (column.toLowerCase() == 'End time' && cellValue.isEmpty) {
+                            else if (column.toLowerCase() == 'end time' && cellValue.isEmpty) {
                               needToEnd=true;
                             }
 
-                            if (column.toLowerCase() == 'Action') {
+                            if (column.toLowerCase() == 'action') {
                               if(needToStart) {
                                 return DataCell(
                                   ElevatedButton.icon(

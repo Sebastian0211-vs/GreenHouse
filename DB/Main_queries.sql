@@ -370,38 +370,79 @@ RETURNING id
 -- app must listen to that and react accordingly
 
 -- Then add related tasks based on crop intervals (in progress)
--- Add watering tasks(type_id=1)
-do $$
-begin
-  for counter in 1..(SELECT harvesting_window FROM crops WHERE id = 4) by (SELECT watering_interval FROM crops WHERE id = 4) loop
-    raise notice 'Watering date: %', CURRENT_DATE + counter;
-	INSERT INTO tasks (type_id, user_id, planting_id, due)
-	VALUES
-	(1, NULL, 1, CURRENT_DATE + counter);
-  end loop;
-end; $$
+-- SQL Function to insert planting and related tasks (not to use in code, use only function call)
+-- Function call:
+SELECT create_planting_and_tasks(3, 6, false, 2); -- Parameters : (bed_id, crop_id, is_trial, size)
+--
+CREATE OR REPLACE FUNCTION create_planting_and_tasks(
+  p_bed_id int,
+  p_crop_id int,
+  p_is_trial boolean,
+  p_size int
+)
+RETURNS void AS $$
+DECLARE
+  v_planting_id int;
+  v_harvest_window int;
+  v_watering_interval int;
+  v_thin_interval int;
+  v_scout_pest_interval int;
+  counter int;
+BEGIN
+  -- insert planting
+  INSERT INTO plantings (
+    bed_id,
+    crop_id,
+    harvesting_date,
+    is_trial,
+    size
+  )
+  SELECT
+    p_bed_id,
+    p_crop_id,
+    CURRENT_DATE + c.harvesting_window,
+    p_is_trial,
+    p_size
+  FROM crops c
+  WHERE c.id = p_crop_id
+    AND p_size <= (
+      SELECT b.size - COALESCE(SUM(p.size), 0)
+      FROM beds b
+      LEFT JOIN plantings p ON p.bed_id = b.id
+      WHERE b.id = p_bed_id
+      GROUP BY b.size
+    )
+  RETURNING id INTO v_planting_id;
 
--- Add thin tasks(type_id=2)
-do $$
-begin
-  for counter in 1..(SELECT harvesting_window FROM crops WHERE id = 4) by (SELECT thin_interval FROM crops WHERE id = 4) loop
-    raise notice 'Watering date: %', CURRENT_DATE + counter;
-	INSERT INTO tasks (type_id, user_id, planting_id, due)
-	VALUES
-	(2, NULL, 1, CURRENT_DATE + counter);
-  end loop;
-end; $$
+  IF v_planting_id IS NULL THEN
+    RAISE EXCEPTION 'Not enough space in bed %', p_bed_id;
+  END IF;
 
--- Add scout pest tasks(type_id=3)
-do $$
-begin
-  for counter in 1..(SELECT harvesting_window FROM crops WHERE id = 4) by (SELECT scout_pest_interval FROM crops WHERE id = 4) loop
-    raise notice 'Watering date: %', CURRENT_DATE + counter;
-	INSERT INTO tasks (type_id, user_id, planting_id, due)
-	VALUES
-	(3, NULL, 1, CURRENT_DATE + counter);
-  end loop;
-end; $$
+  -- load crop params
+  SELECT harvesting_window, watering_interval, thin_interval, scout_pest_interval
+  INTO v_harvest_window, v_watering_interval, v_thin_interval, v_scout_pest_interval
+  FROM crops
+  WHERE id = p_crop_id;
+
+  -- create watering tasks (type_id=1)
+  FOR counter IN 1..v_harvest_window BY v_watering_interval LOOP
+    INSERT INTO tasks (type_id, user_id, planting_id, due)
+    VALUES (1, NULL, v_planting_id, CURRENT_DATE + counter);
+  END LOOP;
+
+  -- create thin tasks (type_id=2)
+  FOR counter IN 1..v_harvest_window BY v_thin_interval LOOP
+    INSERT INTO tasks (type_id, user_id, planting_id, due)
+    VALUES (2, NULL, v_planting_id, CURRENT_DATE + counter);
+  END LOOP;
+
+  -- create scout pest tasks (type_id=3)
+  FOR counter IN 1..v_harvest_window BY v_scout_pest_interval LOOP
+    INSERT INTO tasks (type_id, user_id, planting_id, due)
+    VALUES (3, NULL, v_planting_id, CURRENT_DATE + counter);
+  END LOOP;
+END;
+$$ LANGUAGE plpgsql;
 -- -- ** -- --
 
 

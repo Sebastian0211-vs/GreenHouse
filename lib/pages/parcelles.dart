@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'dart:math';
 import '../../services/auth_service.dart';
 import 'package:postgres/postgres.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+
 
 
 class Bed {
@@ -490,6 +493,9 @@ class _ParcellesPageState extends State<ParcellesPage> {
   List<Bed> _beds = [];
   bool _isLoading = true;
   String _errorMessage = '';
+  final Map<String, String?> _wikiThumbCache = {}; // plantName -> url or null
+  final Map<String, Future<String?>> _wikiThumbInFlight = {}; // avoids duplicate requests
+
   final user = AuthService.instance.currentUser;
   
   final connection = PostgreSQLConnection(
@@ -551,6 +557,117 @@ class _ParcellesPageState extends State<ParcellesPage> {
       throw Exception('Error loading beds: $e');
     }
   }
+
+
+Future<String?> _fetchWikiThumbFromDomain({
+  required String domain,
+  required String title,
+}) async {
+  final uri = Uri.https(domain, '/w/api.php', {
+    'action': 'query',
+    'format': 'json',
+    'prop': 'pageimages',
+    'titles': title,
+    'pithumbsize': '500',
+    'pilicense': 'any',
+    'redirects': '1',
+    'origin': '*', // important for web
+  });
+
+  final resp = await http.get(uri);
+  if (resp.statusCode != 200) return null;
+
+  final jsonMap = jsonDecode(resp.body) as Map<String, dynamic>;
+  final pages = (jsonMap['query']?['pages']) as Map<String, dynamic>?;
+  if (pages == null || pages.isEmpty) return null;
+
+  final firstPage = pages.values.first as Map<String, dynamic>;
+  final thumb = firstPage['thumbnail'] as Map<String, dynamic>?;
+  return thumb?['source'] as String?;
+}
+
+Future<String?> _searchAndFetchWikiThumb({
+  required String domain,
+  required String query,
+}) async {
+  // Uses Wikipedia search to find the best page title, then fetch thumbnail
+  final searchUri = Uri.https(domain, '/w/api.php', {
+    'action': 'query',
+    'format': 'json',
+    'list': 'search',
+    'srsearch': query,
+    'srlimit': '1',
+    'origin': '*',
+  });
+
+  final resp = await http.get(searchUri);
+  if (resp.statusCode != 200) return null;
+
+  final jsonMap = jsonDecode(resp.body) as Map<String, dynamic>;
+  final search = (jsonMap['query']?['search']) as List<dynamic>?;
+  if (search == null || search.isEmpty) return null;
+
+  final first = search.first as Map<String, dynamic>;
+  final title = first['title'] as String?;
+  if (title == null || title.isEmpty) return null;
+
+  return _fetchWikiThumbFromDomain(domain: domain, title: title);
+}
+
+
+Future<String?> _getWikipediaThumb(String plantName) async {
+  final name = plantName.trim();
+  if (name.isEmpty || name == "Empty") return null;
+
+  if (_wikiThumbCache.containsKey(name)) return _wikiThumbCache[name];
+  if (_wikiThumbInFlight.containsKey(name)) return _wikiThumbInFlight[name]!;
+
+  String cleanup(String s) {
+    // crude but effective: remove cultivar-ish qualifiers
+    // keep main noun (e.g., "Carotte Purple Haze" -> "Carotte")
+    final parts = s.split(RegExp(r'\s+'));
+    if (parts.length <= 1) return s;
+    // If it contains "Purple", "Haze", etc. drop everything after first word
+    return parts.first;
+  }
+
+  final future = () async {
+    try {
+      // 1) Try exact title on French Wikipedia
+      var url = await _fetchWikiThumbFromDomain(domain: 'fr.wikipedia.org', title: name);
+
+      // 2) Try exact title on English Wikipedia
+      url ??= await _fetchWikiThumbFromDomain(domain: 'en.wikipedia.org', title: name);
+
+      // 3) Search on FR
+      url ??= await _searchAndFetchWikiThumb(domain: 'fr.wikipedia.org', query: name);
+
+      // 4) Search on EN
+      url ??= await _searchAndFetchWikiThumb(domain: 'en.wikipedia.org', query: name);
+
+      // 5) Cleanup fallback (species/common name)
+      final cleaned = cleanup(name);
+      if (url == null && cleaned != name) {
+        url ??= await _searchAndFetchWikiThumb(domain: 'fr.wikipedia.org', query: cleaned);
+        url ??= await _searchAndFetchWikiThumb(domain: 'en.wikipedia.org', query: cleaned);
+      }
+
+      _wikiThumbCache[name] = url;
+      return url;
+    } catch (_) {
+      _wikiThumbCache[name] = null;
+      return null;
+    } finally {
+      _wikiThumbInFlight.remove(name);
+    }
+  }();
+
+  _wikiThumbInFlight[name] = future;
+  return future;
+}
+
+
+
 
   Color randomColor() {
     final Random random = Random();
@@ -1117,83 +1234,140 @@ class _ParcellesPageState extends State<ParcellesPage> {
 
                   return InkWell(
                     onTap: () {
-                      if (tile.label == "Empty") {
-                        _openAddPlantingModal(context, bed);
-                      } else {
-                        // Open a modal with all plantings info
-                        showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true,
-                          builder: (context) {
-                            return Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    tile.tooltip, // plant name
-                                    style: const TextStyle(
-                                        fontSize: 20, fontWeight: FontWeight.bold),
+                      showModalBottomSheet(
+                        context: context,
+                        isScrollControlled: true,
+                        builder: (context) {
+                          return Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  tile.tooltip,
+                                  style: const TextStyle(
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                  const SizedBox(height: 8),
-                                  Text("Crop size: ${tile.planting.size}"),
-                                  Text("Planted on: ${tile.planting.plantingDate.toLocal().toIso8601String().split('T').first}"),
-                                  Text("Planned harvest: ${tile.planting.harvestingDate.toLocal().toIso8601String().split('T').first}"),
-                                  Text("Trial: ${tile.planting.isTrial}"),
-                                  const SizedBox(height: 16),
-                                  // Notes buttons
-                                  ElevatedButton.icon(
-                                    icon: const Icon(Icons.note),
-                                    label: const Text("See notes"),
-                                    onPressed: () {
-                                      Navigator.pop(context); // close planting modal first
+                                ),
+                                const SizedBox(height: 8),
+                                Text("Crop size: ${tile.planting.size}"),
+                                Text(
+                                  "Planted on: ${tile.planting.plantingDate.toLocal().toIso8601String().split('T').first}",
+                                ),
+                                Text(
+                                  "Planned harvest: ${tile.planting.harvestingDate.toLocal().toIso8601String().split('T').first}",
+                                ),
+                                Text("Trial: ${tile.planting.isTrial}"),
+                                const SizedBox(height: 16),
 
-                                      _openNotesModal(context, tile.planting);
-                                    },
-                                  ),
-                                  // Tasks button
-                                  ElevatedButton.icon(
-                                    icon: const Icon(Icons.note),
-                                    label: const Text("See tasks"),
-                                    onPressed: () {
-                                      Navigator.pop(context); // close planting modal first
+                                ElevatedButton.icon(
+                                  icon: const Icon(Icons.note),
+                                  label: const Text("See notes"),
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                    _openNotesModal(context, tile.planting);
+                                  },
+                                ),
 
-                                      _openTasksModal(context, tile.planting);
-                                    },
-                                  ),
-
-                                ],
-                              ),
-                            );
-                          },
-                        );
-                      }
-                    },
-                    child: Tooltip(
-                      message: tile.tooltip,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: tile.color,
-                          borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: Colors.black12),
-                        ),
-                        child: Center(
-                          child: Text(
-                            tile.tooltip,
-                            maxLines: 2,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
+                                ElevatedButton.icon(
+                                  icon: const Icon(Icons.task),
+                                  label: const Text("See tasks"),
+                                  onPressed: () {
+                                    Navigator.pop(context);
+                                    _openTasksModal(context, tile.planting);
+                                  },
+                                ),
+                              ],
                             ),
-                            textAlign: TextAlign.center,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ),
-                    ),
+                          );
+                        },
+                      );
+                    },
+
+                    child: Tooltip(
+  message: tile.tooltip,
+  child: ClipRRect(
+    borderRadius: BorderRadius.circular(6),
+    child: Stack(
+      fit: StackFit.expand,
+      children: [
+        // Always have a fallback
+        Container(
+          decoration: BoxDecoration(
+            color: tile.color,
+            border: Border.all(color: Colors.black12),
+          ),
+        ),
+
+        // Wikipedia background image (async)
+        if (tile.planting.id != 0 && tile.planting.name != "Empty")
+          FutureBuilder<String?>(
+  future: _getWikipediaThumb(tile.planting.name),
+  builder: (context, snap) {
+    final url = snap.data;
+
+    // DEBUG: show state
+    if (snap.connectionState == ConnectionState.waiting) {
+      return const Center(child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)));
+    }
+
+    if (url == null) {
+      // No result: show nothing (keeps tile color), but during dev you can show an icon:
+      // return const Center(child: Icon(Icons.image_not_supported));
+      return const SizedBox.shrink();
+    }
+
+    return Image.network(
+      url,
+      fit: BoxFit.cover,
+      errorBuilder: (_, e, __) {
+        // DEBUG
+        debugPrint('Wiki image failed for ${tile.planting.name}: $e');
+        return const SizedBox.shrink();
+      },
+    );
+  },
+),
+
+
+        // Dark overlay for readability (only if we potentially have an image)
+        if (tile.planting.id != 0 && tile.planting.name != "Empty")
+          Container(color: Colors.black.withOpacity(0.35)),
+
+        Center(
+          child: Padding(
+            padding: const EdgeInsets.all(4),
+            child: Text(
+              tile.tooltip,
+              maxLines: 2,
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+                shadows: [
+                  Shadow(
+                    blurRadius: 6,
+                    color: Colors.black54,
+                    offset: Offset(0, 1),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
+    ),
+  ),
+),
+
+
                   );
                 },
+
               ),
               const SizedBox(height: 24), // space between beds
             ],
